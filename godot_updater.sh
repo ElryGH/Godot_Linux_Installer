@@ -7,6 +7,10 @@ LATEST_RELEASE_URL="https://github.com/godotengine/godot/releases/latest"
 LATEST_RELEASE_API="https://api.github.com/repos/godotengine/godot/releases/latest"
 MONO_BUILD="stable_mono_linux_x86_64.zip"
 TMP_DIR=""
+DESKTOP_FILE_SOURCE="./godot.desktop"  # Path to your pre-created desktop file
+DESKTOP_FILE_TARGET="$HOME/.local/share/applications/godot.desktop"
+ICON_URL="https://raw.githubusercontent.com/godotengine/godot/master/icon.png"
+ICON_PATH="$INSTALL_DIR/godot.png"
 
 # Ensure installation directory exists
 if [ ! -d "$INSTALL_DIR" ]; then
@@ -36,7 +40,7 @@ if [ -z "$LATEST_TAG" ]; then
 fi
 
 # Check if update or first install is needed
-if [ "$CURRENT_VERSION" == "$LATEST_TAG" ] && [ -f "$INSTALL_DIR/Godot_v${LATEST_TAG}_stable_mono_x86_64" ]; then
+if [ "$CURRENT_VERSION" == "$LATEST_TAG" ] && [ -f "$INSTALL_DIR/godot" ]; then
     echo "Godot is already up-to-date. Current version: $CURRENT_VERSION"
     exit 0
 fi
@@ -67,18 +71,44 @@ if [ -d "$INSTALL_DIR" ]; then
     sudo rm -rf "$INSTALL_DIR/*"
 fi
 
-# Extract new version to /opt
+# Extract new version to temporary directory
 echo "Installing Godot $LATEST_TAG..."
-unzip -q "$ZIP_FILE" -d "$INSTALL_DIR"
+unzip -q "$ZIP_FILE" -d "$TMP_DIR"
 
-# Make executable
-EXECUTABLE=$(find "$INSTALL_DIR" -name "Godot_v${LATEST_TAG}_stable_mono_x86_64")
+# Rename the executable to 'godot' and move it to the installation directory
+EXECUTABLE=$(find "$TMP_DIR" -name "Godot_v${LATEST_TAG}_stable_mono_x86_64")
 if [ -f "$EXECUTABLE" ]; then
-    sudo chmod +x "$EXECUTABLE"
+    mv "$EXECUTABLE" "$TMP_DIR/godot"
+    sudo mv "$TMP_DIR/godot" "$INSTALL_DIR/godot"
+    sudo chmod +x "$INSTALL_DIR/godot"
 else
     echo "Failed to find the Godot executable after extraction. Exiting..."
     rm -rf "$TMP_DIR"
     exit 1
+fi
+
+# Download the Godot icon if it doesn't exist
+if [ ! -f "$ICON_PATH" ]; then
+    echo "Downloading Godot icon..."
+    curl -L "$ICON_URL" -o "$ICON_PATH"
+    if [ ! -f "$ICON_PATH" ]; then
+        echo "Failed to download the Godot icon. Exiting..."
+        rm -rf "$TMP_DIR"
+        exit 1
+    fi
+fi
+
+# Move desktop file if it doesn't exist
+if [ ! -f "$DESKTOP_FILE_TARGET" ]; then
+    if [ -f "$DESKTOP_FILE_SOURCE" ]; then
+        echo "Moving desktop file to $DESKTOP_FILE_TARGET..."
+        cp "$DESKTOP_FILE_SOURCE" "$DESKTOP_FILE_TARGET"
+        chmod +x "$DESKTOP_FILE_TARGET"
+        echo "Desktop file installed at $DESKTOP_FILE_TARGET"
+    else
+        echo "Desktop file source not found. Please ensure $DESKTOP_FILE_SOURCE exists."
+        exit 1
+    fi
 fi
 
 # Update current version
