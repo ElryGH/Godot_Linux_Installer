@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Godot
+Comment=Godot Game Engine
+Exec=/opt/godot/godot
+Icon=/opt/godot/godot.png
+Terminal=false
+Type=Application
+Categories=Development;Game;
