@@ -4,8 +4,6 @@
 INSTALL_DIR="/opt/godot"
 CURRENT_VERSION_FILE="$HOME/.local/share/godot/current_version"
 LATEST_RELEASE_URL="https://github.com/godotengine/godot/releases/latest"
-LATEST_RELEASE_API="https://api.github.com/repos/godotengine/godot/releases/latest"
-MONO_BUILD="stable_mono_linux_x86_64.zip"
 TMP_DIR=""
 DESKTOP_FILE_SOURCE="./godot.desktop"  # Path to your pre-created desktop file
 DESKTOP_FILE_TARGET="$HOME/.local/share/applications/godot.desktop"
@@ -13,13 +11,17 @@ ICON_URL="https://raw.githubusercontent.com/godotengine/godot/master/icon.png"
 ICON_PATH="$INSTALL_DIR/godot.png"
 
 # Ensure installation directory exists
+echo "Checking if Godot installation directory exists..."
 if [ ! -d "$INSTALL_DIR" ]; then
     echo "Godot installation directory not found. Creating it..."
     sudo mkdir -p "$INSTALL_DIR"
     sudo chown "$USER":"$USER" "$INSTALL_DIR"
+else
+    echo "Godot installation directory exists at $INSTALL_DIR."
 fi
 
 # Ensure current version file exists
+echo "Checking if current version file exists..."
 CURRENT_VERSION_DIR="$(dirname "$CURRENT_VERSION_FILE")"
 if [ ! -d "$CURRENT_VERSION_DIR" ]; then
     echo "No directory for current version file. Creating it..."
@@ -28,34 +30,43 @@ fi
 if [ ! -f "$CURRENT_VERSION_FILE" ]; then
     echo "No current version file found. Creating it..."
     echo "none" > "$CURRENT_VERSION_FILE"
+else
+    echo "Current version file found at $CURRENT_VERSION_FILE."
 fi
 
-# Fetch the latest version tag from GitHub
-LATEST_TAG=$(curl -sL "$LATEST_RELEASE_URL" | grep -oP '(?<=tag/)[^"]+')
+# Fetch the latest version tag by following the redirect
+echo "Fetching the latest version tag from GitHub..."
+LATEST_TAG=$(curl -Ls -o /dev/null -w %{url_effective} "$LATEST_RELEASE_URL" | sed 's#.*/tag/\(.*\)#\1#')
 CURRENT_VERSION=$(cat "$CURRENT_VERSION_FILE")
 
 if [ -z "$LATEST_TAG" ]; then
-    echo "Failed to fetch the latest version information. Exiting..."
+    echo "Failed to fetch the latest version information from GitHub. Exiting..."
     exit 1
 fi
 
+echo "Latest version tag is $LATEST_TAG. Current version is $CURRENT_VERSION."
+
 # Check if update or first install is needed
-if [ "$CURRENT_VERSION" == "$LATEST_TAG" ] && [ -f "$INSTALL_DIR/godot" ]; then
+if [ "$CURRENT_VERSION" == "$LATEST_TAG" ] && [ -f "$INSTALL_DIR/godot/godot" ]; then
     echo "Godot is already up-to-date. Current version: $CURRENT_VERSION"
     exit 0
 fi
 
 # Get the download URL for the latest Mono build
-DOWNLOAD_URL=$(curl -s "$LATEST_RELEASE_API" | grep -oP "https://github.com/godotengine/godot/releases/download/$LATEST_TAG/.*$MONO_BUILD")
+echo "Fetching the download URL for the latest Mono build..."
+DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/godotengine/godot/releases/tags/$LATEST_TAG" | grep -oP '"browser_download_url": "\K[^"]*mono.*linux.*x86_64.zip')
 
 if [ -z "$DOWNLOAD_URL" ]; then
-    echo "Failed to fetch the download URL for the latest Mono build. Exiting..."
+    echo "Failed to fetch the correct download URL for the latest Mono build (x86_64). Exiting..."
     exit 1
 fi
 
+echo "Download URL for Godot $LATEST_TAG: $DOWNLOAD_URL"
+
 # Prepare temporary directory for download
+echo "Preparing temporary directory for download..."
 TMP_DIR=$(mktemp -d)
-ZIP_FILE="$TMP_DIR/$MONO_BUILD"
+ZIP_FILE="$TMP_DIR/godot.zip"
 echo "Downloading Godot $LATEST_TAG..."
 curl -L "$DOWNLOAD_URL" -o "$ZIP_FILE"
 
@@ -65,29 +76,50 @@ if [ ! -f "$ZIP_FILE" ]; then
     exit 1
 fi
 
+echo "Download complete. File saved to $ZIP_FILE."
+
 # Remove old installation if present
+echo "Removing old version of Godot if present..."
 if [ -d "$INSTALL_DIR" ]; then
-    echo "Removing old version..."
     sudo rm -rf "$INSTALL_DIR/*"
+    echo "Old version removed."
+else
+    echo "No previous installation found."
 fi
 
 # Extract new version to temporary directory
-echo "Installing Godot $LATEST_TAG..."
+echo "Extracting Godot $LATEST_TAG to temporary directory..."
 unzip -q "$ZIP_FILE" -d "$TMP_DIR"
 
-# Rename the executable to 'godot' and move it to the installation directory
-EXECUTABLE=$(find "$TMP_DIR" -name "Godot_v${LATEST_TAG}_stable_mono_linux_x86_64")
-if [ -f "$EXECUTABLE" ]; then
-    mv "$EXECUTABLE" "$TMP_DIR/godot"
-    sudo mv "$TMP_DIR/godot" "$INSTALL_DIR/godot"
-    sudo chmod +x "$INSTALL_DIR/godot"
-else
-    echo "Failed to find the Godot executable after extraction. Exiting..."
+# Log the contents of the temporary directory after extraction
+echo "Contents of temporary directory after extraction:"
+ls -lR "$TMP_DIR"
+
+# Identify the extracted folder (the folder name is not fixed)
+EXTRACTED_FOLDER=$(find "$TMP_DIR" -type d -name "Godot_v*" -print -quit)
+
+if [ ! -d "$EXTRACTED_FOLDER" ]; then
+    echo "Failed to find the extracted Godot folder. Exiting..."
     rm -rf "$TMP_DIR"
     exit 1
 fi
 
+echo "Extracted folder found at: $EXTRACTED_FOLDER"
+
+# Move all files from the extracted folder to the install directory
+echo "Moving files from extracted folder to $INSTALL_DIR/godot..."
+sudo mv "$EXTRACTED_FOLDER"/* "$INSTALL_DIR/godot/"
+
+# Rename the Godot executable to 'godot'
+echo "Renaming executable to 'godot'..."
+sudo mv "$INSTALL_DIR/godot/Godot_v*.x86_64" "$INSTALL_DIR/godot/godot"
+
+# Ensure the executable has correct permissions
+echo "Setting execute permissions for 'godot'..."
+sudo chmod +x "$INSTALL_DIR/godot/godot"
+
 # Download the Godot icon if it doesn't exist
+echo "Checking if Godot icon exists..."
 if [ ! -f "$ICON_PATH" ]; then
     echo "Downloading Godot icon..."
     curl -L "$ICON_URL" -o "$ICON_PATH"
@@ -96,9 +128,12 @@ if [ ! -f "$ICON_PATH" ]; then
         rm -rf "$TMP_DIR"
         exit 1
     fi
+else
+    echo "Godot icon already exists."
 fi
 
 # Move desktop file if it doesn't exist
+echo "Checking if desktop file exists..."
 if [ ! -f "$DESKTOP_FILE_TARGET" ]; then
     if [ -f "$DESKTOP_FILE_SOURCE" ]; then
         echo "Moving desktop file to $DESKTOP_FILE_TARGET..."
@@ -109,22 +144,25 @@ if [ ! -f "$DESKTOP_FILE_TARGET" ]; then
         echo "Desktop file source not found. Please ensure $DESKTOP_FILE_SOURCE exists."
         exit 1
     fi
+else
+    echo "Desktop file already exists at $DESKTOP_FILE_TARGET."
 fi
 
 # Update current version
+echo "Updating current version to $LATEST_TAG..."
 echo "$LATEST_TAG" > "$CURRENT_VERSION_FILE"
 
 # Clean up
 rm -rf "$TMP_DIR"
+echo "Clean-up completed."
+
+# Check if /opt/godot is in the PATH and add it if necessary
+if ! grep -q "/opt/godot" ~/.bashrc; then
+    echo 'export PATH=$PATH:/opt/godot' >> ~/.bashrc
+    echo "Added /opt/godot to your PATH in ~/.bashrc"
+    source ~/.bashrc
+else
+    echo "/opt/godot is already in the PATH."
+fi
 
 echo "Godot $LATEST_TAG installed successfully at $INSTALL_DIR."
-
-# Add the installation directory to PATH if not already done
-if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-    echo "Adding $INSTALL_DIR to PATH..."
-    echo "export PATH=\$PATH:$INSTALL_DIR" >> "$HOME/.bashrc"
-    source "$HOME/.bashrc"
-    echo "$INSTALL_DIR has been added to your PATH. You can now run 'godot' from anywhere."
-else
-    echo "$INSTALL_DIR is already in your PATH."
-fi
