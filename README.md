@@ -57,6 +57,6 @@ If you'd like to store the script in a more permanent location, you can move it 
 
 3. Add this line to your Crontab:
     ```bash
-    @reboot /home/youruser/.local/share/bin/godot-updater.sh
+    @reboot sudo /home/youruser/.local/share/bin/godot-updater.sh
     ```
 
