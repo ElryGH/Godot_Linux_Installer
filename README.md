@@ -1,2 +1,4 @@
-# Godot_Linux_Installer
-A Linux Script &amp; Service to automatically update Godot
+# Godot Linux Installer
+
+A Script to Install and keep your Godot updated fully automatic.
+Using the latest GH mono release.
