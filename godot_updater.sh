@@ -54,7 +54,7 @@ fi
 
 # Get the download URL for the latest Mono build
 echo "Fetching the download URL for the latest Mono build..."
-DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/godotengine/godot/releases/tags/$LATEST_TAG" | grep -oP '"browser_download_url": "\K[^"]*mono.*linux.*x86_64.zip')
+DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/godotengine/godot/releases/tags/$LATEST_TAG" | grep -o '"browser_download_url": "\([^"]*mono.*linux.*x86_64.zip\)"' | sed 's/"browser_download_url": "//g' | sed 's/"//g')
 
 if [ -z "$DOWNLOAD_URL" ]; then
     echo "Failed to fetch the correct download URL for the latest Mono build (x86_64). Exiting..."
@@ -157,7 +157,7 @@ rm -rf "$TMP_DIR"
 echo "Clean-up completed."
 
 # Check if /opt/godot is in the PATH and add it if necessary
-if ! grep -q "/opt/godot" ~/.bashrc; then
+if ! grep -q '/opt/godot' ~/.bashrc; then
     echo 'export PATH=$PATH:/opt/godot' >> ~/.bashrc
     echo "Added /opt/godot to your PATH in ~/.bashrc"
     source ~/.bashrc
