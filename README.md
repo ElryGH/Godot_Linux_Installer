@@ -23,14 +23,14 @@ This script automates the installation and updating of Godot Engine (with Mono s
 1. Clone this repository or download the script file.
 2. Make the script executable:
     ```bash
-    chmod +x install_godot.sh
+    chmod +x godot_updater.sh
     ```
 
 ### Step 2: Run the script
 
 1. To install Godot, simply run the script:
     ```bash
-    ./install_godot.sh
+    ./godot_updater.sh
     ```
 
 2. The script will:
