@@ -76,7 +76,7 @@ echo "Installing Godot $LATEST_TAG..."
 unzip -q "$ZIP_FILE" -d "$TMP_DIR"
 
 # Rename the executable to 'godot' and move it to the installation directory
-EXECUTABLE=$(find "$TMP_DIR" -name "Godot_v${LATEST_TAG}_stable_mono_x86_64")
+EXECUTABLE=$(find "$TMP_DIR" -name "Godot_v${LATEST_TAG}_stable_mono_linux_x86_64")
 if [ -f "$EXECUTABLE" ]; then
     mv "$EXECUTABLE" "$TMP_DIR/godot"
     sudo mv "$TMP_DIR/godot" "$INSTALL_DIR/godot"
@@ -118,3 +118,13 @@ echo "$LATEST_TAG" > "$CURRENT_VERSION_FILE"
 rm -rf "$TMP_DIR"
 
 echo "Godot $LATEST_TAG installed successfully at $INSTALL_DIR."
+
+# Add the installation directory to PATH if not already done
+if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
+    echo "Adding $INSTALL_DIR to PATH..."
+    echo "export PATH=\$PATH:$INSTALL_DIR" >> "$HOME/.bashrc"
+    source "$HOME/.bashrc"
+    echo "$INSTALL_DIR has been added to your PATH. You can now run 'godot' from anywhere."
+else
+    echo "$INSTALL_DIR is already in your PATH."
+fi
