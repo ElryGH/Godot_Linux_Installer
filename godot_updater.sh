@@ -48,12 +48,12 @@ if [ "$CURRENT_VERSION" == "$LATEST_TAG" ] && [ -f "$INSTALL_DIR/godot" ]; then
     exit 0
 fi
 
-# Get the download URL for the latest Mono build
-echo "Fetching the download URL for the latest Mono build..."
-DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/godotengine/godot/releases/tags/$LATEST_TAG" | grep -o '"browser_download_url": "\([^"]*mono.*linux.*x86_64.zip\)"' | sed 's/"browser_download_url": "//g' | sed 's/"//g')
+# Get the download URL for the latest build
+echo "Fetching the download URL for the latest build..."
+DOWNLOAD_URL=$(curl -s "https://api.github.com/repos/godotengine/godot/releases/tags/$LATEST_TAG" | grep -o '"browser_download_url": "\([^"]*linux.*x86_64.zip\)"' | grep -v "mono" | sed 's/"browser_download_url": "//g' | sed 's/"//g')
 
 if [ -z "$DOWNLOAD_URL" ]; then
-    echo "Failed to fetch the correct download URL for the latest Mono build (x86_64). Exiting..."
+    echo "Failed to fetch the correct download URL for the latest build (x86_64). Exiting..."
     exit 1
 fi
 
@@ -90,26 +90,7 @@ fi
 
 # Extract new version to temporary directory
 echo "Extracting Godot $LATEST_TAG to temporary directory..."
-unzip -q "$ZIP_FILE" -d "$TMP_DIR"
-
-# Log the contents of the temporary directory after extraction
-echo "Contents of temporary directory after extraction:"
-ls -lR "$TMP_DIR"
-
-# Identify the extracted folder (the folder name is not fixed)
-EXTRACTED_FOLDER=$(find "$TMP_DIR" -type d -name "Godot_v*" -print -quit)
-
-if [ ! -d "$EXTRACTED_FOLDER" ]; then
-    echo "Failed to find the extracted Godot folder. Exiting..."
-    rm -rf "$TMP_DIR"
-    exit 1
-fi
-
-echo "Extracted folder found at: $EXTRACTED_FOLDER"
-
-# Move all files from the extracted folder to the install directory
-echo "Moving files from extracted folder to $INSTALL_DIR..."
-sudo mv "$EXTRACTED_FOLDER"/* "$INSTALL_DIR/"
+unzip -jq "$ZIP_FILE" -d "$INSTALL_DIR"
 
 # Find the Godot executable and rename it to 'godot'
 echo "Renaming executable to 'godot'..."
@@ -135,7 +116,6 @@ if [ ! -f "$ICON_PATH" ]; then
     curl -L "$ICON_URL" -o "$ICON_PATH"
     if [ ! -f "$ICON_PATH" ]; then
         echo "Failed to download the Godot icon."
-        rm -rf "$TMP_DIR"
     fi
 else
     echo "Godot icon already exists."
